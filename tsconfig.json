@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "rootDir": "./src", // The entry point for all of our TypeScript files (make sure all .ts files are stored in a subdirectory of this!)
+    "outDir": "./build", // The directory which we'll be exporting our compiled JavaScript files to
+    "lib": ["ESNext", "DOM"], // The libraries we wish to use in TS (ESNext being the latest version of JavaScript, and DOM being JavaScript DOM libraries - like console.log)
+    "strict": true, // Stipulating we want strict mode on. I personally would recommend this to get the most out of TS - another great article on this here: https://dev.to/briwa/how-strict-is-typescript-s-strict-mode-311a
+    "module": "NodeNext",                                  /* Specify what module code is generated. */
+    "moduleResolution": "NodeNext", /* Specify how TypeScript looks up a file from a given module specifier. */
+    "esModuleInterop": true
+  }
+}
