@@ -458,7 +458,7 @@ fragment PayloadErrorFields on PayloadError {
 }`;
     const variables = {
       input: {
-        transactionId: '166332725911824754',
+        transactionId: transaction.id,
         tagIds,
       },
     };
