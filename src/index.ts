@@ -197,6 +197,11 @@ async function promptForAction(transactions: MonarchTransaction[], index: number
       });
       break;
 
+    // Force reload transaction information
+    case 'r':
+      transactions[index] = await api.getTransaction(transaction.id);
+      break;
+
     // Find other transactions
     case 'f':
       const searchResults = await searchTransactions(transaction.merchant.name);
@@ -214,7 +219,9 @@ async function promptForAction(transactions: MonarchTransaction[], index: number
       const links = await getCustomLinks();
       if (!links.size) {
         console.debug(
-          chalk.red('The file `links.json` does not exist. Create one based on `links.json.sample`.')
+          chalk.red(
+            'The file `links.json` does not exist. Create one based on `links.json.sample`.'
+          )
         );
         break;
       }
@@ -229,6 +236,7 @@ async function promptForAction(transactions: MonarchTransaction[], index: number
         pupa(url, {
           plaidName: encodeURIComponent(transaction.plaidName),
           date: encodeURIComponent(transaction.date),
+          transactionId: encodeURIComponent(transaction.id),
         })
       );
       break;
@@ -254,6 +262,7 @@ async function promptForAction(transactions: MonarchTransaction[], index: number
       log('  b\tBulk set transaction categories');
       log('  t\tSet the tags for this transaction');
       log('  d\tSet the date (when) for this transaction');
+      log('  r\tForce reload this transaction');
       log('  l\tOpen a link for this transaction');
       log('  f\tFind transactions for a given description');
       log('  q\tQuit');
@@ -276,6 +285,7 @@ async function promptForCategory(
     choices: sortby(
       Array.from(categories.values()).map((x) => ({
         title: `${x.icon}  ${x.group.name}: ${x.name}`,
+        title_single: x.name,
         value: x.id,
         name: `${x.group.name}: ${x.name}`,
       })),
@@ -299,6 +309,7 @@ async function promptForTags(
     choices: sortby(
       Array.from(tags.values()).map((x) => ({
         title: x.name,
+        title_single: x.name,
         value: x,
         selected: initialTagIds ? Boolean(initialTagIds.find((tagId) => tagId === x.id)) : false,
       })),
@@ -532,7 +543,11 @@ function formatPromptDateAsMonarchDate(date: Date): string {
  * Used by prompts autocomplete
  */
 function caseInsensitiveFilter(input: string, choices: any[]): any {
-  return Promise.resolve(choices.filter((x) => x.title.match(new RegExp(input, 'i'))));
+  const filtered = sortby(
+    choices.filter((x) => x.title.match(new RegExp(input, 'i'))),
+    [(o) => o.title_single.toUpperCase() === input.toUpperCase(), 'title']
+  );
+  return Promise.resolve(filtered);
 }
 
 async function getMonarchApi(): Promise<MonarchApi> {
