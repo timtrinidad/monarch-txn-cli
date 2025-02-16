@@ -40,6 +40,22 @@ async function processTransactions(transactions: MonarchTransaction[]): Promise<
   let index = 0;
   const numTxns = transactions.length;
 
+  console.log('========== Transactions To Review - Count by Merchant ==========');
+  const counts = transactions.reduce((prev, curr) => {
+    const merchantName = curr.merchant.name;
+    if (merchantName in prev) {
+      prev[merchantName]++;
+    } else {
+      prev[merchantName] = 1;
+    }
+    return prev;
+  }, {} as Record<string, number>);
+  Object.entries(counts)
+    .sort(([_a, a], [_b, b]) => b - a)
+    .forEach(([merchant, numTxns]) => {
+      console.log(`  ${numTxns}\t${merchant}`);
+    });
+
   while (index < numTxns) {
     const transaction = transactions[index];
     displayTransaction(transactions, index);
