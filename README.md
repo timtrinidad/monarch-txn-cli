@@ -32,7 +32,7 @@ for you to look at and edit one by one.
     cp .env.sample
     vi .env
     ```
-    TODO: Support Google login and MFA
+    TODO: Support Google login
 
 
 5. Start the script

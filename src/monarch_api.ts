@@ -12,6 +12,7 @@ import {
 } from './types/monarch-types.js';
 import getenv from 'getenv';
 import * as dotenv from 'dotenv';
+import { authenticator } from 'otplib';
 
 dotenv.config();
 
@@ -33,6 +34,7 @@ export default class MonarchApi {
     }
 
     console.debug('No cached token found. Logging in.');
+    const totp = authenticator.generate(getenv('MONARCH_MFA_TOKEN'));
     const res = (await this.fetch('auth/login/', {
       method: 'POST',
       body: JSON.stringify({
@@ -40,6 +42,7 @@ export default class MonarchApi {
         password: getenv('MONARCH_PASSWORD'),
         trusted_device: true,
         supports_mfa: true,
+        totp,
       }),
     })) as Record<string, string>;
 
