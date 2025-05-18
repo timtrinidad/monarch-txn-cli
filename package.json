@@ -7,8 +7,8 @@
   "type": "module",
   "scripts": {
     "start": "node --loader ts-node/esm src/index.ts",
-    "lint": "eslint",
-    "lint:fix": "eslint --fix"
+    "lint": "eslint src/*.ts",
+    "lint:fix": "eslint src/*.ts --fix"
   },
   "devDependencies": {
     "@types/getenv": "^1.0.3",

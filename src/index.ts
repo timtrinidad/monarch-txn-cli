@@ -58,7 +58,7 @@ async function processTransactions(transactions: MonarchTransaction[]): Promise<
 
   while (index < numTxns) {
     const transaction = transactions[index];
-    displayTransaction(transactions, index);
+    await displayTransaction(transactions, index);
     index = await promptForAction(transactions, index);
   }
 }
@@ -481,10 +481,25 @@ async function updateTags(
 /**
  * Format a transaction for display
  */
-function displayTransaction(transactions: MonarchTransaction[], num: number): void {
+async function displayTransaction(transactions: MonarchTransaction[], num: number): Promise<void> {
+  const api = await getMonarchApi();
   const txn = transactions[num];
   const total = transactions.length;
   const { log } = console;
+  const prevTxns = await api.searchTransactions({ search: txn.merchant.name }, 'date', 50);
+
+  // Count previous categories from search
+  const prevCats = prevTxns
+    .map((x) => formatCategory(x.category, true))
+    .reduce((counts, x) => counts.set(x, (counts.get(x) || 0) + 1), new Map<string, number>())
+    .entries();
+  // Sort by descending order and take top 2, ignoring 1's
+  const prevCatsLine = Array.from(prevCats)
+    .sort((a, b) => b[1] - a[1])
+    .filter(([_, num]) => num > 1)
+    .slice(0, 2)
+    .map(([cat, num]) => `${cat} x${num}`)
+    .join(', ');
 
   log(`========== ${num + 1} of ${total} ==========`);
   log(
@@ -494,7 +509,11 @@ function displayTransaction(transactions: MonarchTransaction[], num: number): vo
       (txn.hideFromReports ? `${chalk.red('Hidden')} ` : '') +
       (txn.notes ? `${chalk.grey(txn.notes.replaceAll(/\n+/g, '\n'))}` : '')
   );
-  log(`   ${chalk.bold('Category')}: ${formatCategory(txn.category)}`);
+  log(
+    `   ${chalk.bold('Category')}: ${formatCategory(txn.category)} ${
+      prevCatsLine ? chalk.grey(`(prev. txns.: ${prevCatsLine})`) : ''
+    }`
+  );
   log(`   ${chalk.bold('Tags')}: ${formatTags(txn.tags)}`);
   log(
     `   ${chalk.gray(txn.account.displayName)}\n` +
@@ -521,9 +540,11 @@ function formatDate(date: string | moment.Moment): string {
 /**
  * Given a transaction category, format for display
  */
-function formatCategory(category: Partial<MonarchCategory>): string {
-  const categoryFormat =
-    category.name === 'Uncategorized' ? chalk.yellow.bold.underline : chalk.yellow;
+function formatCategory(category: Partial<MonarchCategory>, noFormat = false): string {
+  let categoryFormat = chalk.gray;
+  if (!noFormat) {
+    categoryFormat = category.name === 'Uncategorized' ? chalk.yellow.bold.underline : chalk.yellow;
+  }
   const categoryIcon = category.icon;
   return `${categoryIcon}  ${categoryFormat(category.name)}`;
 }
