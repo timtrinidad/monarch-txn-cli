@@ -56,10 +56,30 @@ async function processTransactions(transactions: MonarchTransaction[]): Promise<
       console.log(`  ${numTxns}\t${merchant}`);
     });
 
+  const api = await getMonarchApi();
   while (index < numTxns) {
     const transaction = transactions[index];
+    const prevTxnsPromise = api.searchTransactions({ search: transaction.merchant.name }, 'date', 50);
     await displayTransaction(transactions, index);
-    index = await promptForAction(transactions, index);
+    const indexPromise = promptForAction(transactions, index);
+    
+
+    // Count previous categories from search
+    const prevTxns = await prevTxnsPromise;
+    const prevCats = prevTxns
+      .map((x) => formatCategory(x.category, true))
+      .reduce((counts, x) => counts.set(x, (counts.get(x) || 0) + 1), new Map<string, number>())
+      .entries();
+    // Sort by descending order and take top 2, ignoring 1's
+    const prevCatsLine = Array.from(prevCats)
+      .sort((a, b) => b[1] - a[1])
+      .filter(([_, num]) => num > 1)
+      .slice(0, 2)
+      .map(([cat, num]) => `${cat} x${num}`)
+      .join(', ');
+    transaction.previousCategories = prevCatsLine;
+
+    index = await indexPromise;
   }
 }
 
@@ -152,6 +172,7 @@ async function promptForAction(transactions: MonarchTransaction[], index: number
 
     // Change Category
     case 'c':
+      console.debug(`Previous categories: ${transaction.previousCategories}`);
       const category = await promptForCategory(transaction.category.id);
       if (category) {
         await saveTransaction(transactions, index, {
@@ -294,20 +315,21 @@ async function promptForCategory(
   initialCategoryId: string | undefined = undefined
 ): Promise<MonarchCategory | null> {
   const categories = await getMonarchCategories();
+  // console.log(JSON.stringify(initialCategoryId), categories.values())
+  
+  const categoryChoices = sortby(Array.from(categories.values()).map((x) => ({
+    title: `${x.icon}  ${x.group.name}: ${x.name}`,
+    title_single: x.name,
+    value: x.id,
+    name: `${x.group.name}: ${x.name}`,
+  })), 'name');
+
   const category = await prompts({
     type: 'autocomplete',
     name: 'category',
     message: 'Category: ',
-    choices: sortby(
-      Array.from(categories.values()).map((x) => ({
-        title: `${x.icon}  ${x.group.name}: ${x.name}`,
-        title_single: x.name,
-        value: x.id,
-        name: `${x.group.name}: ${x.name}`,
-      })),
-      'name'
-    ),
-    suggest: caseInsensitiveFilter,
+    choices: categoryChoices,
+    suggest: caseInsensitiveFilter('name'),
     initial: initialCategoryId,
   });
   const newCategory = categories.get(category.category);
@@ -331,7 +353,7 @@ async function promptForTags(
       })),
       'title'
     ),
-    suggest: caseInsensitiveFilter,
+    suggest: caseInsensitiveFilter('title'),
   });
   return bulkTags.tags;
 }
@@ -486,20 +508,7 @@ async function displayTransaction(transactions: MonarchTransaction[], num: numbe
   const txn = transactions[num];
   const total = transactions.length;
   const { log } = console;
-  const prevTxns = await api.searchTransactions({ search: txn.merchant.name }, 'date', 50);
-
-  // Count previous categories from search
-  const prevCats = prevTxns
-    .map((x) => formatCategory(x.category, true))
-    .reduce((counts, x) => counts.set(x, (counts.get(x) || 0) + 1), new Map<string, number>())
-    .entries();
-  // Sort by descending order and take top 2, ignoring 1's
-  const prevCatsLine = Array.from(prevCats)
-    .sort((a, b) => b[1] - a[1])
-    .filter(([_, num]) => num > 1)
-    .slice(0, 2)
-    .map(([cat, num]) => `${cat} x${num}`)
-    .join(', ');
+  
 
   log(`========== ${num + 1} of ${total} ==========`);
   log(
@@ -510,9 +519,7 @@ async function displayTransaction(transactions: MonarchTransaction[], num: numbe
       (txn.notes ? `${chalk.grey(txn.notes.replaceAll(/\n+/g, '\n'))}` : '')
   );
   log(
-    `   ${chalk.bold('Category')}: ${formatCategory(txn.category)} ${
-      prevCatsLine ? chalk.grey(`(prev. txns.: ${prevCatsLine})`) : ''
-    }`
+    `   ${chalk.bold('Category')}: ${formatCategory(txn.category)}`
   );
   log(`   ${chalk.bold('Tags')}: ${formatTags(txn.tags)}`);
   log(
@@ -579,12 +586,14 @@ function formatPromptDateAsMonarchDate(date: Date): string {
  * Filter a list of choices by the "title" attribute for a given input - case-insensitive
  * Used by prompts autocomplete
  */
-function caseInsensitiveFilter(input: string, choices: any[]): any {
-  const filtered = sortby(
-    choices.filter((x) => x.title.match(new RegExp(input, 'i'))),
-    [(o) => o.title_single.toUpperCase() === input.toUpperCase(), 'title']
-  );
-  return Promise.resolve(filtered);
+function caseInsensitiveFilter(sortByKey: string = 'name'): any {
+  return (input: string, choices: any[]): any => {
+    const filtered = sortby(
+      choices.filter((x) => x.title.match(new RegExp(input, 'i'))),
+      [(o) => o.title_single.toUpperCase() === input.toUpperCase(), sortByKey]
+    );
+    return Promise.resolve(filtered);
+  }
 }
 
 async function getMonarchApi(): Promise<MonarchApi> {

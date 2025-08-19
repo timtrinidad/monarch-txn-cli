@@ -32,6 +32,7 @@ export interface MonarchTransaction {
   category: Partial<MonarchCategory>;
   merchant: MonarchMerchant;
   tags: MonarchTag[];
+  previousCategories?: string;
 }
 
 export interface MonarchMerchant {
