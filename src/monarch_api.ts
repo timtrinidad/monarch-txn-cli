@@ -16,7 +16,7 @@ import { authenticator } from 'otplib';
 
 dotenv.config();
 
-const BASE_URL = 'https://api.monarchmoney.com';
+const BASE_URL = 'https://api.monarch.com';
 const TOKEN_CACHE_PATH = '.token_cache';
 
 export default class MonarchApi {
